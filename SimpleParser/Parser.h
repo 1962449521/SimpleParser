@@ -12,6 +12,6 @@
 
 @interface Parser : NSObject
 
-+ (ParseNode *) parseTree:(OrigNode *)treeNode;
+- (ParseNode *) parseTree:(OrigNode *)treeNode;
 
 @end

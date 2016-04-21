@@ -9,8 +9,6 @@
 #import "Parser.h"
 #import <libkern/OSAtomic.h>
 
-volatile uint32_t _isShouldCancel;
-
 id parseStr(NSString *content, NSError **error){
     // TODO:操作字符串解释，生成解释结果或者错误
     if ([content hasPrefix:@"value:"]) {
@@ -21,26 +19,28 @@ id parseStr(NSString *content, NSError **error){
     return nil;
 }
 
-void assembleParseResult(ParseNode *node, id result, NSError *error) {
+void assembleParseResult(ParseNode *node, id result, NSError *error, volatile uint32_t *_isShouldCancelRef ) {
     if (error) {
-        OSAtomicOr32Barrier(1, &_isShouldCancel);
+        OSAtomicOr32Barrier(1, _isShouldCancelRef);
         node.error = error;
     } else {
         node.result = result;
     }
 }
 
-@implementation Parser
+@implementation Parser {
+    volatile uint32_t _isShouldCancel;
+}
 
-+ (ParseNode *) parseTree:(OrigNode *)treeNode {
+- (ParseNode *) parseTree:(OrigNode *)treeNode {
     ParseNode *treeParseNode = [ParseNode new];
     treeParseNode.subNodes = [NSMutableArray new];
     
     NSError *error;                                     // 解释自身数据
     id result = parseStr([treeNode content], &error);
-    assembleParseResult(treeParseNode, result, error);
+    assembleParseResult(treeParseNode, result, error, &_isShouldCancel);
     
-    if (_isShouldCancel) {
+    if (_isShouldCancel != 0) {
         return treeParseNode;
     }
     
